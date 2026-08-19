@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "rootDir": "src/services",
+    "outDir": "dist/services",
+    "allowJs": true,
+    "checkJs": false,
+    "noCheck": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["src/services/**/*.ts", "src/services/**/*.js"],
+  "exclude": ["src/services/**/scripts/**", "src/services/**/bbl_presets/**"]
+}

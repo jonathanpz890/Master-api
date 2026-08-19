@@ -1,22 +1,60 @@
 import type { Server } from 'node:http';
+import { startHeartbeat } from 'mnemonix';
 
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
+import { getReadiness, initializeRequiredServices, type Readiness } from './lib/service-readiness.js';
 
 let shuttingDown = false;
-const app = createApp({ isReady: () => !shuttingDown });
+
+const serviceLabel = (service: string): string =>
+  ({ print3dHub: 'Print3D Hub', bynder: 'Bynder' })[service] ?? service;
+
+const logServiceSummary = (readiness: Readiness): void => {
+  logger.info(readiness.ready ? 'API ready — services:' : 'API ready with unavailable services:');
+
+  for (const [service, health] of Object.entries(readiness.services)) {
+    if (health.state === 'ready') {
+      logger.info(`  ✓ ${serviceLabel(service)} — ready`);
+      continue;
+    }
+
+    logger.warn(
+      `  ✗ ${serviceLabel(service)} — ${health.state}${health.error ? `: ${health.error}` : ''}`,
+    );
+  }
+
+  logger.info('  ○ Bango — initializes on first request');
+};
+
+startHeartbeat();
+const app = createApp({ isReady: () => !shuttingDown, getReadiness });
 const server = app.listen(env.PORT, env.HOST, () => {
-  logger.info({ host: env.HOST, port: env.PORT }, 'API server listening');
+  logger.info(`API listening on ${env.HOST}:${env.PORT}`);
+});
+
+void initializeRequiredServices().then((readiness) => {
+  logServiceSummary(readiness);
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error('Unhandled promise rejection', reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught exception', error);
 });
 
 const closeServer = (httpServer: Server): Promise<void> =>
-  new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
+  new Promise((resolve, reject) =>
+    httpServer.close((error) => (error ? reject(error) : resolve())),
+  );
 
 const shutdown = (signal: NodeJS.Signals): void => {
   if (shuttingDown) return;
   shuttingDown = true;
-  logger.info({ signal }, 'Graceful shutdown started');
+  logger.info('Graceful shutdown started', { signal });
 
   const forceExitTimer = setTimeout(() => {
     logger.error('Graceful shutdown timed out');
@@ -32,7 +70,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
     })
     .catch((error: unknown) => {
       clearTimeout(forceExitTimer);
-      logger.error({ err: error }, 'Graceful shutdown failed');
+      logger.error('Graceful shutdown failed', error);
       process.exit(1);
     });
 };

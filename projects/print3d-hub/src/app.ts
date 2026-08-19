@@ -42,7 +42,8 @@ app.use(requestLogger);
 const allowedOrigins = [
   'https://3d.blueprint-studios.co.il', 
   'https://blueprint-studios-3d.netlify.app',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  process.env.GATEWAY_ORIGIN || 'http://localhost:3000',
 ];
 
 app.use(cors({

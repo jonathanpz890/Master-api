@@ -31,10 +31,12 @@ if (process.env.NODE_ENV !== 'dev' && process.env.NODE_ENV !== 'localhost') {
 }
 app.use(cookieParser())
 app.use(session({
+    name: 'bango.sid',
     secret: process.env.SESSION_SECRET || 'development-only-change-me',
     resave: false,
     saveUninitialized: false,
     cookie: {
+        path: process.env.SESSION_COOKIE_PATH || '/',
         secure: process.env.NODE_ENV !== 'dev',
         httpOnly: process.env.NODE_ENV !== 'dev',
         maxAge: 36000000000,

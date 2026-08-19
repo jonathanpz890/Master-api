@@ -53,6 +53,7 @@ if (!process.env.SESSION_SECRET) {
 }
 
 app.use(session({
+    name: 'bynder.sid',
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -63,6 +64,7 @@ app.use(session({
         autoRemove: 'native',
     }),
     cookie: {
+        path: process.env.SESSION_COOKIE_PATH || '/',
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',

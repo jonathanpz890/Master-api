@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import { z } from 'zod';
+import { logger } from 'mnemonix';
 
 const booleanFromEnvironment = z.enum(['true', 'false']).transform((value) => value === 'true');
 
@@ -10,16 +11,13 @@ const environmentSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  PRINT3D_HUB_API_URL: z.url().default('http://localhost:5001'),
-  BYNDER_API_URL: z.url().default('http://localhost:5002'),
-  BANGO_API_URL: z.url().default('http://localhost:5003'),
   TRUST_PROXY: booleanFromEnvironment.default(false),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);
 
 if (!parsedEnvironment.success) {
-  console.error('Invalid environment configuration', parsedEnvironment.error.flatten().fieldErrors);
+  logger.error('Invalid environment configuration', parsedEnvironment.error.flatten().fieldErrors);
   process.exit(1);
 }
 
