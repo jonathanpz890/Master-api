@@ -5,6 +5,10 @@ import { logger } from 'mnemonix';
 
 const booleanFromEnvironment = z.enum(['true', 'false']).transform((value) => value === 'true');
 
+// The public Blueprint storefront is served separately from this API. Keep its
+// exact production origin trusted even when a deployment omits CORS_ORIGINS.
+const builtInCorsOrigins = ['https://3d.blueprint-studios.co.il'];
+
 const environmentSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   HOST: z.string().default('0.0.0.0'),
@@ -23,9 +27,10 @@ if (!parsedEnvironment.success) {
 
 export const env = {
   ...parsedEnvironment.data,
-  corsOrigins: parsedEnvironment.data.CORS_ORIGINS.split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  corsOrigins: [...new Set([
+    ...builtInCorsOrigins,
+    ...parsedEnvironment.data.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),
+  ])],
 };
 
 export type Environment = typeof env;

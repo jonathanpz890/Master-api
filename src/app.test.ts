@@ -22,6 +22,18 @@ describe('application', () => {
     expect(response.text).toContain('Health check');
   });
 
+  it('allows the public Blueprint site to call Blueprint API routes', async () => {
+    const response = await request(createApp())
+      .options('/api/v1/blueprint/orders')
+      .set('Origin', 'https://3d.blueprint-studios.co.il')
+      .set('Access-Control-Request-Method', 'POST');
+
+    expect(response.status).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe(
+      'https://3d.blueprint-studios.co.il',
+    );
+  });
+
   it('reports not ready while graceful shutdown is in progress', async () => {
     const response = await request(createApp({ isReady: () => false })).get('/health/ready');
 
