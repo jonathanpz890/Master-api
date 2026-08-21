@@ -61,7 +61,7 @@ export const sliceModelController = async (req: Request, res: Response): Promise
       parsedLayerHeight,
     );
 
-    const securedResult = createSliceJob(result);
+    const securedResult = await createSliceJob(result);
     try {
       fs.renameSync(file.path, path.join(path.dirname(file.path), securedResult.fileKey!));
     } catch (renameError) {

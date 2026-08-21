@@ -130,8 +130,8 @@ export const addOrderController = async (req: Request, res: Response): Promise<v
     PETG: { rate: 0.18, density: 1.27 },
     TPU: { rate: 0.26, density: 1.21 },
   };
-  const authoritativeModels = models.map((model: any) => {
-    const job = getSliceJob(model?.fileKey);
+  const authoritativeModels = await Promise.all(models.map(async (model: any) => {
+    const job = await getSliceJob(model?.fileKey);
     const material = typeof model?.material === 'string' ? model.material.toUpperCase() : '';
     const quantity = Number(model?.quantity);
     if (
@@ -163,7 +163,7 @@ export const addOrderController = async (req: Request, res: Response): Promise<v
       price: Number((unitPrice * quantity).toFixed(2)),
       fileKey: job.fileKey,
     };
-  });
+  }));
   if (authoritativeModels.some((model: any) => model === null)) {
     res.status(400).json({ error: 'Each order model must reference a recent completed slice job' });
     return;
@@ -184,7 +184,7 @@ export const addOrderController = async (req: Request, res: Response): Promise<v
       thingiverseUrl: thingiverseUrl || '',
       thingiverseName: thingiverseName || '',
     } as any);
-    authoritativeModels.forEach((model: any) => deleteSliceJob(model.fileKey));
+    await Promise.all(authoritativeModels.map((model: any) => deleteSliceJob(model.fileKey)));
     res.status(201).json({ success: true, data: newOrder });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to save order', message: error.message });
