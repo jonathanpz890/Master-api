@@ -24,8 +24,8 @@
   "author": "",
   "license": "UNLICENSED",
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24.0.0",
-    "npm": ">=10"
+    "node": "22.x",
+    "npm": "10.x"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
