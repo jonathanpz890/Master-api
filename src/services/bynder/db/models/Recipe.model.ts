@@ -31,4 +31,7 @@ const RecipeSchema = new mongoose.Schema({
     airFryTemp: { type: String }
 }, { timestamps: true });
 
+// Serves the library query: find a user's recipes newest first.
+RecipeSchema.index({ userId: 1, updatedAt: -1 });
+
 export const Recipe = mongoose.model('Recipe', RecipeSchema);

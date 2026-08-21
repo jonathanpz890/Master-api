@@ -122,7 +122,10 @@ export const getDashboardPlans = async (userId: string) => {
         ],
       },
     ],
-  }).sort({ 'data.startDate': 1, deadline: 1 });
+  })
+    .sort({ 'data.startDate': 1, deadline: 1 })
+    .limit(12)
+    .lean();
 };
 
 export const getPlanById = async (planId: string, userId: string) => {

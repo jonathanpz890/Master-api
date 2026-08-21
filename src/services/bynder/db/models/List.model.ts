@@ -74,5 +74,6 @@ const ListSchema = new mongoose.Schema({
 
 ListSchema.index({ userId: 1 });
 ListSchema.index({ userId: 1, projectId: 1 });
+ListSchema.index({ userId: 1, 'settings.pinned': 1, updatedAt: -1 });
 
 export const List = mongoose.model('List', ListSchema);

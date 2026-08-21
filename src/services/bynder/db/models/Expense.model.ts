@@ -54,5 +54,6 @@ const ExpenseSchema: Schema = new Schema(
 );
 
 ExpenseSchema.index({ userId: 1 });
+ExpenseSchema.index({ userId: 1, type: 1, date: 1 });
 
 export default mongoose.model<IExpense>('Expense', ExpenseSchema);

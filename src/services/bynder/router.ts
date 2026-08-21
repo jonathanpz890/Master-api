@@ -87,7 +87,6 @@ export const isBynderConnected = (): boolean => mongoose.connection.readyState =
 
 export const createBynderRouter = async (): Promise<Router> => {
   await initializeBynder();
-  const mongoUri = required('BYNDER_MONGO_URI');
   const router = express.Router();
   const imagesDirectory =
     process.env.BYNDER_IMAGES_DIR ?? path.resolve(process.cwd(), 'data/bynder/images');
@@ -95,25 +94,55 @@ export const createBynderRouter = async (): Promise<Router> => {
 
   router.use(express.json());
   router.use(express.urlencoded({ extended: true }));
-  router.use(
-    (await import('express-session')).default({
-      name: 'bynder.sid',
-      secret: required('BYNDER_SESSION_SECRET'),
-      resave: false,
-      saveUninitialized: false,
-      proxy: true,
-      store: MongoStore.create({ mongoUrl: mongoUri, stringify: false, autoRemove: 'native' }),
-      cookie: {
-        path: '/api/v1/bynder',
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      },
+  const session = (await import('express-session')).default;
+  const sessionMiddleware = session({
+    name: 'bynder.sid',
+    secret: required('BYNDER_SESSION_SECRET'),
+    resave: false,
+    saveUninitialized: false,
+    proxy: true,
+    // Reuse Bynder's already-connected Mongoose pool. Previously connect-mongo
+    // opened another Atlas client lazily on the first authenticated request.
+    store: MongoStore.create({
+      client: mongoose.connection.getClient(),
+      stringify: false,
+      autoRemove: 'native',
+      touchAfter: 24 * 60 * 60,
     }),
-  );
+    cookie: {
+      path: '/api/v1/bynder',
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    },
+  });
+  router.use((request, response, next) => {
+    const startedAt = performance.now();
+    sessionMiddleware(request, response, (error) => {
+      const durationMs = Number((performance.now() - startedAt).toFixed(2));
+      if (durationMs >= 250) {
+        logger.warn('Bynder session store was slow', { durationMs, method: request.method, path: request.path });
+      }
+      next(error);
+    });
+  });
   router.use(passport.initialize());
-  router.use(passport.session());
+  const passportSession = passport.session();
+  router.use((request, response, next) => {
+    const startedAt = performance.now();
+    passportSession(request, response, (error) => {
+      const durationMs = Number((performance.now() - startedAt).toFixed(2));
+      if (durationMs >= 250) {
+        logger.warn('Bynder Passport session restore was slow', {
+          durationMs,
+          method: request.method,
+          path: request.path,
+        });
+      }
+      next(error);
+    });
+  });
   router.use('/images', express.static(imagesDirectory));
   router.use(routes);
   logger.info('Service router created', { service: 'bynder' });

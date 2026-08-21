@@ -81,6 +81,7 @@ export const smartParseRecipe = async (req: Request, res: Response) => {
 };
 
 export const getRecipes = async (req: Request, res: Response) => {
+  const startedAt = performance.now();
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -88,8 +89,16 @@ export const getRecipes = async (req: Request, res: Response) => {
       return;
     }
 
-    const recipes = await Recipe.find({ userId }).sort({ updatedAt: -1 });
+    const recipes = await Recipe.find({ userId }).sort({ updatedAt: -1 }).lean();
     res.status(200).json({ recipes });
+    const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    if (durationMs >= 500) {
+      logger.warn('Bynder recipe library query was slow', {
+        durationMs,
+        recipeCount: recipes.length,
+        userId,
+      });
+    }
   } catch (error: any) {
     handleControllerError(res, error, 'Error fetching recipes');
   }

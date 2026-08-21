@@ -1,10 +1,4 @@
 import express from 'express';
-import authRouter from './auth.js';
-import templatesRouter from './templates.js';
-import { getConfig } from '../services/appServices.js';
-import { clearListEntryImage, createList, createListEntry, deleteListEntry, getListById, getLists, updateListEntry, updateListEntryWithFile } from '../services/ListServices.js';
-import multer from 'multer';
-import path from 'path';
 import { getIngredients, searchRecipes, getRandomRecipes, getRecipeInformation } from '../services/foodServices.js';
 
 const foodRouter = express.Router();

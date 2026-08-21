@@ -17,7 +17,7 @@ import debtsRouter from './debts.js';
 import mealPlanRouter from './mealPlan.js';
 import userRouter from './user.js';
 import aiRouter from './ai.js';
-import { getConfig } from '../services/appServices.js';
+import { getDashboard } from '../services/appServices.js';
 import { ensureAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -26,7 +26,7 @@ const router = express.Router();
 router.use('/auth', authRouter);
 
 // Protected routes — all require authentication
-router.get('/config', ensureAuth, getConfig);
+router.get('/dashboard', ensureAuth, getDashboard);
 router.use('/template', ensureAuth, templatesRouter);
 router.use('/list', ensureAuth, listsRouter);
 router.use('/food', ensureAuth, foodRouter);

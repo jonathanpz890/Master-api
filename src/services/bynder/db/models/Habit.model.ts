@@ -87,5 +87,6 @@ const HabitSchema: Schema = new Schema(
 );
 
 HabitSchema.index({ userId: 1 });
+HabitSchema.index({ userId: 1, streak: -1 });
 
 export default mongoose.model<IHabit>('Habit', HabitSchema);

@@ -158,6 +158,7 @@ const PlanSchema = new mongoose.Schema(
 );
 
 PlanSchema.index({ userId: 1 });
+PlanSchema.index({ userId: 1, status: 1 });
 
 export const Plan = mongoose.model('Plan', PlanSchema);
 

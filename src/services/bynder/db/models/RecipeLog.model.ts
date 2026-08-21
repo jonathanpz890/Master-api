@@ -17,4 +17,6 @@ const RecipeLogSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+RecipeLogSchema.index({ userId: 1, recipeId: 1, date: -1 });
+
 export const RecipeLog = mongoose.model('RecipeLog', RecipeLogSchema);

@@ -1,98 +1,117 @@
 import { Request, Response } from 'express';
-import { Template } from '../db/models/Template.model.js';
 import { List } from '../db/models/List.model.js';
 import { Note } from '../db/models/Note.model.js';
-import { Plan } from '../db/models/Plan.model.js';
 import { Subscription } from '../db/models/Subscription.model.js';
 import Expense from '../db/models/Expense.model.js';
 import Habit from '../db/models/Habit.model.js';
 import Watchlist from '../db/models/Watchlist.model.js';
-import Dream from '../db/models/Dream.model.js';
-import Achievement from '../db/models/Achievement.model.js';
-import Debt from '../db/models/Debt.model.js';
+import { Plan } from '../db/models/Plan.model.js';
 import { logger } from '../logger.js';
-import { Project } from '../db/models/Project.model.js';
+import { getDashboardPlans } from './planServices.js';
 
-const timedConfigQuery = async <T>(dataset: string, query: Promise<T>): Promise<T> => {
-  const startedAt = performance.now();
-  const result = await query;
-  const durationMs = Number((performance.now() - startedAt).toFixed(2));
-
-  logger.info('Bynder config dataset loaded', {
-    dataset,
-    durationMs,
-    slow: durationMs >= 500,
-  });
-
-  return result;
+const currentMonthRange = (): { start: Date; end: Date } => {
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+  };
 };
 
-export const getConfig = async (req: Request, res: Response) => {
+/**
+ * A deliberately compact home-screen payload. Full collections belong to their
+ * own routes and are loaded only after the user visits the relevant feature.
+ */
+export const getDashboard = async (req: Request, res: Response) => {
   const startedAt = performance.now();
   try {
     const userId = (req.user as any)?._id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
-    // Fetch all data in parallel
+    const { start, end } = currentMonthRange();
     const [
-      templates,
-      lists,
-      notes,
       plans,
+      pinnedLists,
+      listCount,
+      pinnedNoteCount,
+      watchlistCount,
+      activePlanCount,
       subscriptions,
-      expenses,
-      habits,
-      watchlist,
-      dreams,
-      achievements,
-      debts,
-      projects,
+      expenseTotal,
+      topHabits,
     ] = await Promise.all([
-      timedConfigQuery('templates', Template.find().lean()),
-      timedConfigQuery('lists', userId ? List.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery('notes', userId ? Note.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery('plans', userId ? Plan.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery(
-        'subscriptions',
-        userId ? Subscription.find({ userId }).lean() : Promise.resolve([]),
-      ),
-      timedConfigQuery('expenses', userId ? Expense.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery('habits', userId ? Habit.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery(
-        'watchlist',
-        userId ? Watchlist.find({ userId }).lean() : Promise.resolve([]),
-      ),
-      timedConfigQuery('dreams', userId ? Dream.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery(
-        'achievements',
-        userId ? Achievement.find({ userId }).lean() : Promise.resolve([]),
-      ),
-      timedConfigQuery('debts', userId ? Debt.find({ userId }).lean() : Promise.resolve([])),
-      timedConfigQuery('projects', userId ? Project.find({ userId }).lean() : Promise.resolve([])),
+      getDashboardPlans(String(userId)),
+      List.find({ userId, 'settings.pinned': true })
+        .select('title entries settings.colorTheme settings.pinned')
+        .sort({ updatedAt: -1 })
+        .limit(8)
+        .lean(),
+      List.countDocuments({ userId }),
+      Note.countDocuments({ userId, pinned: true, archived: { $ne: true } }),
+      Watchlist.countDocuments({ userId }),
+      Plan.countDocuments({ userId, status: 'active' }),
+      Subscription.find({ userId, active: true }).select('price cycle').lean(),
+      Expense.aggregate<{ total: number }>([
+        { $match: { userId, type: 'expense', date: { $gte: start, $lt: end } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Habit.find({ userId }).select('title streak').sort({ streak: -1 }).limit(2).lean(),
     ]);
 
-    const config = {
-      templates,
-      lists,
-      notes,
-      plans,
-      subscriptions,
-      expenses,
-      habits,
-      watchlist,
-      dreams,
-      achievements,
-      debts,
-      projects,
-    };
+    const monthlySubscriptionTotal = subscriptions.reduce((total, subscription) => {
+      const price = Number(subscription.price) || 0;
+      switch (subscription.cycle) {
+        case 'Yearly':
+          return total + price / 12;
+        case 'Weekly':
+          return total + price * 4;
+        case 'Daily':
+          return total + price * 30;
+        default:
+          return total + price;
+      }
+    }, 0);
 
-    res.status(200).json(config);
-    logger.info('Bynder config request completed', {
-      durationMs: Number((performance.now() - startedAt).toFixed(2)),
-      templateCount: templates.length,
-      userId: String(userId),
+    res.status(200).json({
+      dashboard: {
+        plans,
+        pinnedLists,
+        summary: {
+          listCount,
+          activePlanCount,
+          pinnedNoteCount,
+          watchlistCount,
+          monthlySubscriptionTotal,
+          monthlyExpenseTotal: expenseTotal[0]?.total ?? 0,
+          topHabits,
+        },
+      },
+      // Keep feature-slice state safe. Their full collections are fetched only
+      // when the user opens the relevant page.
+      templates: [],
+      lists: [],
+      notes: [],
+      plans: [],
+      subscriptions: [],
+      expenses: [],
+      habits: [],
+      watchlist: [],
+      dreams: [],
+      achievements: [],
+      debts: [],
+      projects: [],
     });
+
+    const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    if (durationMs >= 500) {
+      logger.warn('Bynder dashboard request was slow', { durationMs, userId: String(userId) });
+    } else {
+      logger.info('Bynder dashboard request completed', { durationMs, userId: String(userId) });
+    }
   } catch (error: any) {
-    logger.error('Fetching application configuration failed', error);
+    logger.error('Fetching dashboard data failed', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

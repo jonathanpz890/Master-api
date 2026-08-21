@@ -80,6 +80,15 @@ export const initializeRequiredServices = async (): Promise<Readiness> => {
       };
       connectionChecks.set('bynder', service.isBynderConnected);
       await service.initializeBynder();
+
+      // Session storage and Passport used to be initialized by the first user
+      // request. Warm them with Bynder's own startup without delaying other
+      // services or the HTTP listener.
+      const routerModulePath = '../routes/bynder.router.js';
+      const router = (await import(routerModulePath)) as {
+        initializeBynderRouter: () => Promise<unknown>;
+      };
+      await router.initializeBynderRouter();
     },
   };
   await Promise.allSettled([

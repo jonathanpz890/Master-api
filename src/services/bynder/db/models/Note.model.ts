@@ -55,5 +55,6 @@ const NoteSchema = new mongoose.Schema(
 );
 
 NoteSchema.index({ userId: 1 });
+NoteSchema.index({ userId: 1, pinned: 1, archived: 1 });
 
 export const Note = mongoose.model('Note', NoteSchema);

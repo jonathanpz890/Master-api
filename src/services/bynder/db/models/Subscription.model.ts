@@ -50,5 +50,6 @@ const SubscriptionSchema = new mongoose.Schema(
 );
 
 SubscriptionSchema.index({ userId: 1 });
+SubscriptionSchema.index({ userId: 1, active: 1 });
 
 export const Subscription = mongoose.model('Subscription', SubscriptionSchema);
