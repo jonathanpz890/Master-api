@@ -13,6 +13,15 @@ describe('application', () => {
     expect(response.headers['x-request-id']).toBeDefined();
   });
 
+  it('shows a human-friendly dashboard at the API root', async () => {
+    const response = await request(createApp()).get('/');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.text).toContain('Microserver API');
+    expect(response.text).toContain('Health check');
+  });
+
   it('reports not ready while graceful shutdown is in progress', async () => {
     const response = await request(createApp({ isReady: () => false })).get('/health/ready');
 
