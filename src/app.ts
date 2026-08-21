@@ -56,15 +56,15 @@ const createHomePage = ({
     ? services
         .map(
           ([name, service]) => `<li class="service">
-            <span class="dot ${service.state}"></span>
-            <span>
+            <span class="service-name">
+              <span class="dot ${service.state}"></span>
               <strong>${escapeHtml(serviceLabel(name))}</strong>
-              <small>${escapeHtml(service.state === 'ready' ? 'Ready' : service.state === 'starting' ? 'Starting' : 'Unavailable')}</small>
             </span>
+            <small>${escapeHtml(service.state === 'ready' ? 'Ready' : service.state === 'starting' ? 'Starting' : 'Unavailable')}</small>
           </li>`,
         )
         .join('')
-    : '<li class="service"><span class="dot starting"></span><span><strong>Services</strong><small>Status unavailable</small></span></li>';
+    : '<li class="service"><span class="service-name"><span class="dot starting"></span><strong>Services</strong></span><small>Status unavailable</small></li>';
 
   return `<!doctype html>
 <html lang="en">
@@ -73,41 +73,43 @@ const createHomePage = ({
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Microserver API</title>
     <style>
-      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      :root { color-scheme: light; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       * { box-sizing: border-box; }
-      body { align-items: center; background: #f8f7ff; color: #27233a; display: flex; justify-content: center; margin: 0; min-height: 100vh; overflow: hidden; padding: 24px; }
-      body::before, body::after { border-radius: 999px; content: ""; filter: blur(8px); opacity: .55; position: fixed; z-index: -1; }
-      body::before { background: #dcd1ff; height: 20rem; left: -7rem; top: -5rem; width: 20rem; }
-      body::after { background: #c8f1e7; bottom: -8rem; height: 22rem; right: -6rem; width: 22rem; }
-      main { background: rgba(255,255,255,.86); border: 1px solid rgba(100,74,163,.13); border-radius: 28px; box-shadow: 0 24px 70px rgba(55,35,104,.14); max-width: 680px; padding: clamp(28px, 6vw, 52px); width: 100%; }
-      .eyebrow { color: #7654c7; font-size: .76rem; font-weight: 800; letter-spacing: .12em; margin: 0 0 14px; text-transform: uppercase; }
-      h1 { font-size: clamp(2rem, 6vw, 3.4rem); letter-spacing: -.055em; line-height: 1; margin: 0; }
-      .intro { color: #686276; font-size: 1.05rem; line-height: 1.55; margin: 18px 0 28px; max-width: 36rem; }
-      .status { align-items: center; background: #f0ebff; border-radius: 999px; color: #5c42a4; display: inline-flex; font-size: .88rem; font-weight: 750; gap: 8px; padding: 8px 13px; }
-      .status::before { background: currentColor; border-radius: 50%; content: ""; height: 8px; width: 8px; }
-      .status.ready { background: #e6f8f0; color: #187b58; }.status.starting { background: #fff4d8; color: #a26400; }.status.warning { background: #ffebed; color: #b83750; }
-      .section-title { font-size: .8rem; font-weight: 800; letter-spacing: .1em; margin: 31px 0 12px; text-transform: uppercase; }
-      ul { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
-      .service { align-items: center; background: #fbfaff; border: 1px solid #eeebf7; border-radius: 14px; display: flex; gap: 12px; padding: 14px 15px; }
-      .service strong, .service small { display: block; }.service strong { font-size: .95rem; }.service small { color: #756f83; font-size: .8rem; margin-top: 2px; }
-      .dot { background: #f3b33d; border-radius: 50%; height: 10px; width: 10px; }.dot.ready { background: #33b982; }.dot.failed { background: #e65568; }
-      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }.actions a { border: 1px solid #ded8ed; border-radius: 11px; color: #50398b; font-size: .9rem; font-weight: 750; padding: 11px 14px; text-decoration: none; }.actions a.primary { background: #6e4cb7; border-color: #6e4cb7; color: white; }.actions a:hover { transform: translateY(-1px); }
-      footer { color: #8a8497; font-size: .79rem; margin: 27px 0 0; }
+      body { background: #f7f7f5; color: #202124; margin: 0; min-height: 100vh; }
+      header { align-items: center; border-bottom: 1px solid #e5e5e1; display: flex; height: 64px; justify-content: space-between; padding: 0 max(24px, calc((100vw - 860px) / 2)); }
+      .brand { align-items: center; color: inherit; display: flex; font-size: .95rem; font-weight: 650; gap: 10px; letter-spacing: -.01em; text-decoration: none; }.mark { align-items: center; background: #202124; border-radius: 5px; color: white; display: inline-flex; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; height: 25px; justify-content: center; width: 25px; }
+      .meta { color: #74746f; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .72rem; }
+      main { margin: 0 auto; max-width: 760px; padding: clamp(60px, 11vh, 128px) 24px 70px; }
+      .eyebrow { color: #74746f; font-size: .77rem; font-weight: 600; margin: 0 0 14px; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 620; letter-spacing: -.055em; line-height: 1.02; margin: 0; }
+      .intro { color: #656560; font-size: 1rem; line-height: 1.55; margin: 16px 0 29px; max-width: 34rem; }
+      .status { align-items: center; color: #18794e; display: inline-flex; font-size: .9rem; font-weight: 600; gap: 8px; }.status::before { background: currentColor; border-radius: 50%; content: ""; height: 8px; width: 8px; }.status.starting { color: #a56300; }.status.warning { color: #b33b42; }
+      section { border-top: 1px solid #dfdfdb; margin-top: 52px; padding-top: 20px; }.section-title { font-size: .8rem; font-weight: 650; margin: 0 0 13px; }
+      ul { border-bottom: 1px solid #dfdfdb; list-style: none; margin: 0; padding: 0; }.service { align-items: center; border-top: 1px solid #e7e7e3; display: flex; justify-content: space-between; min-height: 58px; padding: 0 3px; }.service:first-child { border-top: 0; }.service-name { align-items: center; display: flex; gap: 10px; }.service strong { font-size: .93rem; font-weight: 600; }.service small { color: #6e6e69; font-size: .82rem; }.dot { background: #d49a28; border-radius: 50%; height: 8px; width: 8px; }.dot.ready { background: #279f68; }.dot.failed { background: #d44b53; }
+      .actions { display: flex; gap: 20px; margin-top: 28px; }.actions a { color: #343434; font-size: .88rem; font-weight: 600; text-decoration: underline; text-decoration-color: #b8b8b3; text-underline-offset: 4px; }.actions a:hover { text-decoration-color: currentColor; }.actions a.primary { color: #176b46; }
+      footer { color: #85857f; font-size: .78rem; margin: 46px 0 0; }
+      @media (max-width: 520px) { header { padding: 0 20px; }.meta { display: none; } main { padding: 64px 20px 48px; } }
     </style>
   </head>
   <body>
+    <header>
+      <a class="brand" href="/"><span class="mark">m</span>Microserver</a>
+      <span class="meta">API gateway</span>
+    </header>
     <main>
-      <p class="eyebrow">Gateway dashboard</p>
-      <h1>Microserver API</h1>
-      <p class="intro">A small, friendly front door for the services running behind this API.</p>
+      <p class="eyebrow">System status</p>
+      <h1>Microserver is running.</h1>
+      <p class="intro">Live availability for the services connected to this API gateway.</p>
       <span class="status ${status.tone}">${status.label}</span>
-      <p class="section-title">Service status</p>
-      <ul>${serviceCards}</ul>
+      <section>
+        <p class="section-title">Services</p>
+        <ul>${serviceCards}</ul>
+      </section>
       <nav class="actions" aria-label="API links">
-        <a class="primary" href="/health">Health check</a>
-        <a href="/api/v1">API index</a>
+        <a class="primary" href="/health">View health</a>
+        <a href="/api/v1">Browse API</a>
       </nav>
-      <footer>For application use, connect through the versioned API routes.</footer>
+      <footer>Use the versioned routes for application requests.</footer>
     </main>
   </body>
 </html>`;
