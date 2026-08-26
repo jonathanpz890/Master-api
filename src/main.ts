@@ -25,7 +25,7 @@ const logServiceSummary = (readiness: Readiness): void => {
     );
   }
 
-  logger.info('  ○ Bango — initializes on first request');
+  logger.info('  ○ Bingory — initializes on first request');
 };
 
 startHeartbeat();

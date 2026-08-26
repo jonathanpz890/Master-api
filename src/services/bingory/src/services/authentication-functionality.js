@@ -1,18 +1,17 @@
 const bcrypt = require('bcrypt');
 const User = require('../entities/models/user');
-const Property = require('../entities/models/property');
-const passport = require('passport');
 const { logger } = require('../logger');
 
 module.exports = {
   createUser: async (req, res) => {
     try {
-      const { name, phone, password } = req.body;
-      const userExists = await User.findOne({ phone });
+      const { name, email, password } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
+      const userExists = await User.findOne({ email: normalizedEmail });
       if (userExists) {
-        return res.status(400).json({ message: 'כבר קיים משתמש על המספר הזה' });
+        return res.status(400).json({ message: 'כבר קיים חשבון עם כתובת האימייל הזו' });
       }
-      let user = new User({ name, phone, password });
+      let user = new User({ name: name.trim(), email: normalizedEmail, password });
       user.password = await bcrypt.hash(user.password, 10);
       await user.save();
       user = user.toObject();
@@ -24,7 +23,7 @@ module.exports = {
         },
       });
     } catch (error) {
-      logger.error('Registering Bango user failed', error);
+      logger.error('Registering Bingory user failed', error);
       return res.status(400).json({ error: 'Unable to register user' });
     }
   },

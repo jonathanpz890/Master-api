@@ -7,7 +7,11 @@ const booleanFromEnvironment = z.enum(['true', 'false']).transform((value) => va
 
 // The public Blueprint storefront is served separately from this API. Keep its
 // exact production origin trusted even when a deployment omits CORS_ORIGINS.
-const builtInCorsOrigins = ['https://3d.blueprint-studios.co.il'];
+const builtInCorsOrigins = [
+  'https://3d.blueprint-studios.co.il',
+  // Microserver owns port 3000 locally; Bingory's CRA server uses 3001.
+  'http://localhost:3001',
+];
 
 const environmentSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:3000'),

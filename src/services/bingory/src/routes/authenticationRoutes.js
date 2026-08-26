@@ -11,31 +11,28 @@ router.post(
   Middleware.validateRequestSchema,
   Service.createUser,
 );
-router.post('/login', passport.authenticate('local'), (req, res) => {
-  res.send({
+router.post('/login', Validator.login, Middleware.validateRequestSchema, passport.authenticate('local'), (req, res) => {
+  res.status(200).json({
     user: req.user,
     session: req.session.id,
   });
 });
-router.get('/login', (req, res) => {
-  const error = typeof req.flash === 'function' ? req.flash('error') : [];
-  res.status(200).json({ error });
-});
-router.post('/verify-session', (req, res) => {
-  res.send(req.user);
+router.get('/session', (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'נדרשת התחברות לחשבון' });
+  return res.status(200).json({ user: req.user });
 });
 router.post('/logout', (req, res) => {
   req.logout((error) => {
     if (error) {
-      logger.error('Bango logout failed', error);
+      logger.error('Bingory logout failed', error);
       return res.status(500).json({ error: 'Unable to log out' });
     }
     req.session.destroy((sessionError) => {
       if (sessionError) {
-        logger.error('Bango session destruction failed', sessionError);
+        logger.error('Bingory session destruction failed', sessionError);
         return res.status(500).json({ error: 'Unable to log out' });
       }
-      res.clearCookie('bango.sid', { path: '/api/v1/bango' });
+      res.clearCookie('bingory.sid', { path: '/api/v1/bingory' });
       return res.sendStatus(200);
     });
   });

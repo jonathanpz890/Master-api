@@ -1,10 +1,14 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from './app.js';
 import type { Readiness } from './lib/service-readiness.js';
 
 describe('application', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('reports liveness with a request ID', async () => {
     const response = await request(createApp()).get('/health');
 
@@ -71,5 +75,34 @@ describe('application', () => {
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('ROUTE_NOT_FOUND');
     expect(response.body.error.requestId).toBeDefined();
+  });
+
+  it('returns normalized dictionary data from the Free Dictionary API', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      word: 'hello',
+      entries: [{ language: { code: 'en' }, senses: [{ definition: 'A greeting.' }] }],
+      source: { url: 'https://en.wiktionary.org/wiki/hello' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    const response = await request(createApp()).get('/api/v1/langory/dictionary/en/hello');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      word: 'hello',
+      entries: [{ language: { code: 'en' }, senses: [{ definition: 'A greeting.' }] }],
+      source: { url: 'https://en.wiktionary.org/wiki/hello' },
+    });
+    expect(fetch).toHaveBeenCalledWith(expect.objectContaining({
+      href: 'https://freedictionaryapi.com/api/v1/entries/en/hello?translations=true',
+    }));
+  });
+
+  it('returns a useful not-found error when a word is missing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
+
+    const response = await request(createApp()).get('/api/v1/langory/dictionary/fr/not-a-word');
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('DICTIONARY_ENTRY_NOT_FOUND');
   });
 });

@@ -1,11 +1,41 @@
 import express from 'express';
 import passport from 'passport';
-import { authenticateUser, logoutUser } from '../services/userService.js';
+import bcrypt from 'bcrypt';
+import { authenticateUser, logoutUser, toPublicUser } from '../services/userService.js';
 import User from '../db/models/User.model.js';
 import crypto from 'crypto';
 import { logger } from '../logger.js';
 
 const authRouter = express.Router();
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const getCredentials = (body: unknown) => {
+  const data = body as Record<string, unknown>;
+  const email = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : '';
+  const password = typeof data?.password === 'string' ? data.password : '';
+  return { email, password };
+};
+
+const establishSession = (req: any, res: any, user: any, status = 200) => {
+  // The gateway shares Passport with Bingory. Mark this serialized identity so
+  // a password user is always restored from the Bynder database.
+  const sessionUser = {
+    id: user.id ?? String(user._id),
+    _id: user._id,
+    googleId: user.googleId,
+    __authService: 'bynder',
+  };
+
+  req.login(sessionUser, (error: unknown) => {
+    if (error) {
+      logger.error('Bynder password session creation failed', error);
+      res.status(500).json({ error: 'Unable to start your session. Please try again.' });
+      return;
+    }
+    res.status(status).json({ user: toPublicUser(user) });
+  });
+};
 
 // Allowlist of valid redirect origins. Add your mobile scheme here via env var.
 const ALLOWED_REDIRECT_ORIGINS = [
@@ -24,6 +54,71 @@ function isValidRedirectUri(uri: string): boolean {
 
 authRouter.post('/authenticate', authenticateUser);
 authRouter.post('/logout', logoutUser);
+
+authRouter.post('/register', async (req: any, res: any) => {
+  const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+  const { email, password } = getCredentials(req.body);
+
+  if (username.length < 2 || username.length > 80) {
+    res.status(400).json({ error: 'Please enter a name between 2 and 80 characters.' });
+    return;
+  }
+  if (!EMAIL_PATTERN.test(email)) {
+    res.status(400).json({ error: 'Please enter a valid email address.' });
+    return;
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    res
+      .status(400)
+      .json({ error: `Your password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+    return;
+  }
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      res
+        .status(409)
+        .json({ error: 'An account with that email already exists. Sign in instead.' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await new User({ username, email, password: passwordHash }).save();
+    establishSession(req, res, user, 201);
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      res
+        .status(409)
+        .json({ error: 'An account with that email already exists. Sign in instead.' });
+      return;
+    }
+    logger.error('Bynder account registration failed', error);
+    res.status(500).json({ error: 'Unable to create your account. Please try again.' });
+  }
+});
+
+authRouter.post('/login', async (req: any, res: any) => {
+  const { email, password } = getCredentials(req.body);
+  if (!EMAIL_PATTERN.test(email) || !password) {
+    res.status(400).json({ error: 'Enter your email address and password.' });
+    return;
+  }
+
+  try {
+    const user = await User.findOne({ email }).select('+password');
+    const isPasswordValid =
+      Boolean(user?.password) && (await bcrypt.compare(password, user.password!));
+    if (!user || !isPasswordValid) {
+      res.status(401).json({ error: 'Incorrect email address or password.' });
+      return;
+    }
+    establishSession(req, res, user);
+  } catch (error) {
+    logger.error('Bynder password login failed', error);
+    res.status(500).json({ error: 'Unable to sign in right now. Please try again.' });
+  }
+});
 
 authRouter.post('/token-login', async (req: any, res: any) => {
   const { token } = req.body;
@@ -62,7 +157,7 @@ authRouter.post('/token-login', async (req: any, res: any) => {
         return;
       }
       res.json({
-        user,
+        user: toPublicUser(user),
         token: user.apiToken, // Return the long-lived token
       });
     });

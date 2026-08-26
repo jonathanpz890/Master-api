@@ -1,4 +1,4 @@
-const mongoose = require('mongoose-bango');
+const mongoose = require('mongoose-bingory');
 
 const PropertySchema = new mongoose.Schema(
     {

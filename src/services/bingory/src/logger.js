@@ -34,7 +34,7 @@ const sanitize = (value, depth = 0) => {
 
 const write = (level, message, metadata) =>
   mnemonixLogger[level](
-    `[bango] ${redactString(message)}`,
+    `[bingory] ${redactString(message)}`,
     metadata === undefined ? undefined : sanitize(metadata),
   );
 

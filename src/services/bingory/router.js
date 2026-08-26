@@ -1,6 +1,5 @@
 const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose-bango');
+const mongoose = require('mongoose-bingory');
 const mongooseBynder = require('mongoose-bynder');
 const session = require('express-session');
 const passport = require('passport');
@@ -14,28 +13,36 @@ const User = require('./src/entities/models/user');
 
 let initialization;
 
-const initializeBango = () => {
+const initializeBingory = () => {
   initialization ??= (async () => {
-    const mongoUri = process.env.BANGO_MONGO_URI;
-    const sessionSecret = process.env.BANGO_SESSION_SECRET;
+    const mongoUri = process.env.BINGORY_MONGO_URI;
+    const sessionSecret = process.env.BINGORY_SESSION_SECRET;
     if (!mongoUri || !sessionSecret)
-      throw new Error('BANGO_MONGO_URI and BANGO_SESSION_SECRET must be configured');
+      throw new Error('BINGORY_MONGO_URI and BINGORY_SESSION_SECRET must be configured');
 
     logger.info('Connecting service database');
     await mongoose.connect(mongoUri);
     logger.info('Service database connected');
     passport.use(
-      new LocalStrategy({ usernameField: 'phone' }, (phone, password, done) => {
-        User.findOne({ phone }, {}, (error, user) => {
-          if (error || !user) return done(error, user || false);
+      new LocalStrategy({ usernameField: 'email' }, (email, password, done) => {
+        User.findOne({ email: email.toLowerCase().trim() }, {}, (error, user) => {
+          if (error) return done(error);
+          if (!user) return done(null, false, { message: 'כתובת אימייל או סיסמה שגויות' });
           bcrypt.compare(password, user.password, (compareError, matches) =>
-            done(compareError, matches ? user : false),
+            done(
+              compareError,
+              matches ? user : false,
+              matches ? undefined : { message: 'כתובת אימייל או סיסמה שגויות' },
+            ),
           );
         });
       }),
     );
     passport.serializeUser((user, done) =>
-      done(null, { id: user.id, service: user.googleId ? 'bynder' : 'bango' }),
+      done(null, {
+        id: user.id,
+        service: user.__authService === 'bynder' || user.googleId ? 'bynder' : 'bingory',
+      }),
     );
     passport.deserializeUser((serialized, done) => {
       const userModel = serialized.service === 'bynder' ? mongooseBynder.model('User') : User;
@@ -49,31 +56,27 @@ const initializeBango = () => {
   return initialization;
 };
 
-const isBangoConnected = () => mongoose.connection.readyState === 1;
+const isBingoryConnected = () => mongoose.connection.readyState === 1;
 
-const createBangoRouter = async () => {
-  await initializeBango();
-  const mongoUri = process.env.BANGO_MONGO_URI;
-  const sessionSecret = process.env.BANGO_SESSION_SECRET;
+const createBingoryRouter = async () => {
+  await initializeBingory();
+  const mongoUri = process.env.BINGORY_MONGO_URI;
+  const sessionSecret = process.env.BINGORY_SESSION_SECRET;
 
   const router = express.Router();
   router.use(express.json());
   router.use(express.urlencoded({ extended: false }));
-  router.use(
-    cors({
-      origin: (process.env.BANGO_ALLOWED_ORIGINS || 'http://localhost:3000').split(','),
-      credentials: true,
-    }),
-  );
+  // CORS is applied once at the gateway so every service shares the same
+  // explicit allow-list. Do not override it inside this mounted router.
   router.use(cookieParser());
   router.use(
     session({
-      name: 'bango.sid',
+      name: 'bingory.sid',
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
-        path: '/api/v1/bango',
+        path: '/api/v1/bingory',
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -89,4 +92,4 @@ const createBangoRouter = async () => {
   return router;
 };
 
-module.exports = { createBangoRouter, initializeBango, isBangoConnected };
+module.exports = { createBingoryRouter, initializeBingory, isBingoryConnected };

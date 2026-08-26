@@ -34,9 +34,16 @@ export const handleControllerError = (
     error,
     status: error?.status,
   });
-  const status = error.status || 500;
+  const status = Number.isInteger(error?.status) ? error.status : 500;
+  const details = typeof error?.message === 'string' ? error.message : undefined;
+  // Expected client errors (for example, an unsupported video) can safely explain
+  // what the user needs to change. Do not expose implementation errors from 5xxs.
+  const clientMessage = status >= 400 && status < 500 && details ? details : message;
+
   res.status(status).json({
     error: message,
-    details: error.message,
+    message: clientMessage,
+    ...(status >= 400 && status < 500 && details ? { details } : {}),
+    ...(typeof error?.code === 'string' ? { code: error.code } : {}),
   });
 };

@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const legacyMongooseURI = `${process.env.DB_PROTOCOL}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}`;
-const mongooseURI = process.env.MONGO_URI || (process.env.DB_HOST ? legacyMongooseURI : 'mongodb://localhost:27017/bango');
+const mongooseURI = process.env.MONGO_URI || (process.env.DB_HOST ? legacyMongooseURI : 'mongodb://localhost:27017/bingory');
 const APIRoutes = require('./src/routes/config.js')
 const session = require('express-session');
 const passport = require('passport');
@@ -31,7 +31,7 @@ if (process.env.NODE_ENV !== 'dev' && process.env.NODE_ENV !== 'localhost') {
 }
 app.use(cookieParser())
 app.use(session({
-    name: 'bango.sid',
+    name: 'bingory.sid',
     secret: process.env.SESSION_SECRET || 'development-only-change-me',
     resave: false,
     saveUninitialized: false,

@@ -1,7 +1,7 @@
 import express, { type Router } from 'express';
 import MongoStore from 'connect-mongo';
 import mongoose from 'mongoose-bynder';
-import mongooseBango from 'mongoose-bango';
+import mongooseBingory from 'mongoose-bingory';
 import passport from 'passport';
 import fs from 'node:fs';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
@@ -10,6 +10,7 @@ import path from 'node:path';
 import { logger } from './logger.js';
 import User from './db/models/User.model.js';
 import routes from './routes/index.js';
+import { restoreApiTokenUser } from './middleware/auth.js';
 
 let initialization: Promise<void> | undefined;
 
@@ -43,12 +44,24 @@ export const initializeBynder = (): Promise<void> => {
         ) => {
           try {
             request.tempGoogleAccessToken = accessToken;
-            const existingUser = await User.findOne({ googleId: profile.id });
-            if (existingUser) return done(null, existingUser);
+            const email = profile.emails?.[0]?.value?.trim().toLowerCase();
+            const existingUser = await User.findOne({
+              $or: [{ googleId: profile.id }, ...(email ? [{ email }] : [])],
+            });
+            if (existingUser) {
+              if (!existingUser.googleId) {
+                existingUser.googleId = profile.id;
+                if (!existingUser.profilePicture && profile.photos?.[0]?.value) {
+                  existingUser.profilePicture = profile.photos[0].value;
+                }
+                await existingUser.save();
+              }
+              return done(null, existingUser);
+            }
             const user = await new User({
               googleId: profile.id,
               username: profile.displayName,
-              email: profile.emails?.[0]?.value,
+              email,
               profilePicture: profile.photos?.[0]?.value,
               createdAt: new Date(),
             }).save();
@@ -59,17 +72,22 @@ export const initializeBynder = (): Promise<void> => {
         },
       ),
     );
-    passport.serializeUser((user: Express.User & { id: string; googleId?: string }, done) => {
-      done(null, { id: user.id, service: user.googleId ? 'bynder' : 'bango' });
-    });
+    passport.serializeUser(
+      (user: Express.User & { id: string; googleId?: string; __authService?: string }, done) => {
+        done(null, {
+          id: user.id,
+          service: user.__authService === 'bynder' || user.googleId ? 'bynder' : 'bingory',
+        });
+      },
+    );
     passport.deserializeUser(
-      async (serialized: { id: string; service: 'bango' | 'bynder' }, done) => {
+      async (serialized: { id: string; service: 'bingory' | 'bynder' }, done) => {
         try {
           if (serialized.service === 'bynder') {
             done(null, await User.findById(serialized.id));
             return;
           }
-          done(null, await mongooseBango.model('User').findById(serialized.id));
+          done(null, await mongooseBingory.model('User').findById(serialized.id));
         } catch (error) {
           done(error as Error);
         }
@@ -122,7 +140,11 @@ export const createBynderRouter = async (): Promise<Router> => {
     sessionMiddleware(request, response, (error) => {
       const durationMs = Number((performance.now() - startedAt).toFixed(2));
       if (durationMs >= 250) {
-        logger.warn('Bynder session store was slow', { durationMs, method: request.method, path: request.path });
+        logger.warn('Bynder session store was slow', {
+          durationMs,
+          method: request.method,
+          path: request.path,
+        });
       }
       next(error);
     });
@@ -143,6 +165,7 @@ export const createBynderRouter = async (): Promise<Router> => {
       next(error);
     });
   });
+  router.use(restoreApiTokenUser);
   router.use('/images', express.static(imagesDirectory));
   router.use(routes);
   logger.info('Service router created', { service: 'bynder' });

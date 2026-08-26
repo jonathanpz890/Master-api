@@ -2,16 +2,32 @@ import { Request, Response } from 'express';
 import User from '../db/models/User.model.js';
 import { logger } from '../logger.js';
 
+/** Never return password hashes or long-lived credentials to a browser. */
+export const toPublicUser = (user: any) => {
+  const source = typeof user?.toObject === 'function' ? user.toObject() : user;
+  const {
+    password,
+    refreshToken,
+    accessToken,
+    mobileToken,
+    mobileTokenExpires,
+    apiToken,
+    __v,
+    ...publicUser
+  } = source ?? {};
+  return publicUser;
+};
+
 export const authenticateUser = async (req: Request, res: Response) => {
   try {
-    if (!(req as any).isAuthenticated()) {
+    const user = (req as any).user;
+    if (!(req as any).isAuthenticated() && !user) {
       logger.warn('Bynder authentication session check rejected', {
-        reason: 'No authenticated Passport session',
+        reason: 'No authenticated Passport session or API token',
       });
       res.status(401).json({ error: 'User is not authenticated' });
       return;
     }
-    const user = (req as any).user;
     if (!user) {
       logger.warn('Bynder authentication session check rejected', {
         reason: 'Authenticated session has no user',
@@ -21,7 +37,7 @@ export const authenticateUser = async (req: Request, res: Response) => {
     }
     // Refresh user from DB to get latest fields if needed, or rely on passport deserialization
     // Passport deserialization strategy typically fetches the user.
-    res.json({ user });
+    res.json({ user: toPublicUser(user) });
     return;
   } catch (error) {
     logger.error('Authenticating user failed', error);
@@ -55,7 +71,7 @@ export const updateUser = async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ user: updatedUser });
+    res.json({ user: toPublicUser(updatedUser) });
   } catch (error) {
     logger.error('Updating user failed', error);
     res.status(500).json({ error: 'Failed to update user' });

@@ -2,8 +2,9 @@ import { Router, type RequestHandler } from 'express';
 
 import { AppError } from '../lib/app-error.js';
 import type { Readiness, ServiceName } from '../lib/service-readiness.js';
-import { createBangoRouter } from './bango.router.js';
+import { createBingoryRouter } from './bingory.router.js';
 import { createBynderRouter } from './bynder.router.js';
+import { createLangoryRouter } from './langory.router.js';
 import { createPrint3dHubRouter } from './print3d-hub.router.js';
 
 interface V1RouterOptions {
@@ -39,7 +40,8 @@ export const createV1Router = ({ getReadiness }: V1RouterOptions = {}): Router =
 
   router.use('/blueprint', requireService('print3dHub', getReadiness), createPrint3dHubRouter());
   router.use('/bynder', requireService('bynder', getReadiness), createBynderRouter());
-  router.use('/bango', createBangoRouter());
+  router.use('/bingory', createBingoryRouter());
+  router.use('/langory', createLangoryRouter());
 
   return router;
 };

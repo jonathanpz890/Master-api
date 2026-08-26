@@ -3,16 +3,9 @@ const Validator = require('../validators/authentication');
 const Service = require('../services/user-functionality');
 const middleware = require('../middleware/middleware');
 
-router.get(
-    '/',
-    Service.getAllUsers
-)
+router.use(middleware.requireAuthentication);
 
-router.patch(
-    '/',
-    Validator.updateUser,
-    middleware.validateRequestSchema,
-    Service.updateUser
-)
+router.get('/', Service.getAllUsers);
+router.patch('/', Validator.updateUser, middleware.validateRequestSchema, Service.updateUser);
 
 module.exports = router;

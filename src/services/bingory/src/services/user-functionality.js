@@ -4,7 +4,7 @@ const { logger } = require('../logger');
 module.exports = {
   getAllUsers: async (req, res) => {
     try {
-      const users = await User.find().populate({ path: 'properties' }).select('-password');
+      const users = await User.find().select('-password');
       return res.status(200).json({
         success: true,
         data: {
