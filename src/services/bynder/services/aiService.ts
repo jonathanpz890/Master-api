@@ -95,7 +95,33 @@ const spoonacularIngredientImageUrl = (image: unknown): string | undefined => {
   return `https://img.spoonacular.com/ingredients_100x100/${encodeURIComponent(image)}`;
 };
 
-export const extractRecipeFromUrl = async (url: string) => {
+const getYouTubeVideoTitle = async (url: string): Promise<string | undefined> => {
+  try {
+    const parsedUrl = new URL(url);
+    const videoId = parsedUrl.hostname.endsWith('youtu.be')
+      ? parsedUrl.pathname.split('/').filter(Boolean)[0]
+      : parsedUrl.pathname.match(/^\/shorts\/([^/?#]+)/)?.[1] || parsedUrl.searchParams.get('v');
+
+    if (!videoId) return undefined;
+
+    const canonicalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const response = await axios.get('https://www.youtube.com/oembed', {
+      params: { url: canonicalUrl, format: 'json' },
+      timeout: 5_000,
+    });
+    const title = response.data?.title;
+    return typeof title === 'string' && title.trim() ? title.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+type RecipeExtractionResult = {
+  recipe: any | null;
+  sourceTitle?: string;
+};
+
+export const extractRecipeFromUrl = async (url: string): Promise<RecipeExtractionResult> => {
   const parsedUrl = new URL(url);
   const isVideoRecipe = isSpoonacularVideoUrl(url);
 
@@ -129,7 +155,7 @@ export const extractRecipeFromUrl = async (url: string) => {
     );
     const data = res.data;
 
-    if (!data?.title) return null;
+    if (!data?.title) return { recipe: null };
 
     // Map Spoonacular data to our format.
     const mappedRecipe = {
@@ -164,7 +190,12 @@ export const extractRecipeFromUrl = async (url: string) => {
     });
 
     const isComplete = mappedRecipe.ingredients.length > 0 && mappedRecipe.instructions.length > 0;
-    if (isComplete) return await finalizeRecipeData(mappedRecipe);
+    if (isComplete) {
+      return {
+        recipe: await finalizeRecipeData(mappedRecipe),
+        sourceTitle: data.title,
+      };
+    }
 
     logger.warn('Spoonacular returned an incomplete recipe; rejecting extraction', {
       inputType: isVideoRecipe ? 'video' : 'website',
@@ -176,7 +207,7 @@ export const extractRecipeFromUrl = async (url: string) => {
   } catch (e) {
     logger.warn('Spoonacular extraction failed; falling back to AI parsing', e);
   }
-  return null;
+  return { recipe: null };
 };
 
 export const parseRecipeFromInput = async (input: string) => {
@@ -196,16 +227,29 @@ export const parseRecipeFromInput = async (input: string) => {
     originalUrl = input.trim();
     const isVideoRecipe = isSpoonacularVideoUrl(originalUrl);
 
-    // Gemini receives the web page HTML, not the video's audio or frames. Returning
-    // Spoonacular's translated recipe text would violate source-language preservation,
-    // so surface a clear result instead and let the user provide a transcript or text.
+    // Use Spoonacular's dedicated video extractor before fetching page HTML. YouTube
+    // pages do not contain the recipe in their static markup, but this endpoint can
+    // return a full recipe for supported cooking videos.
     if (isVideoRecipe) {
+      const extraction = await extractRecipeFromUrl(originalUrl);
+      if (extraction.recipe) return extraction.recipe;
+
+      const videoTitle = (
+        extraction.sourceTitle || (await getYouTubeVideoTitle(originalUrl))
+      )
+        ?.trim()
+        .slice(0, 90);
+      const videoLabel = videoTitle ? ` \u201c${videoTitle}\u201d` : '';
+
       logger.warn('Video recipe extraction produced no complete Spoonacular recipe', {
         host: new URL(originalUrl).hostname,
+        videoTitle,
       });
       throw Object.assign(
         new Error(
-          'The video did not expose enough recipe data for extraction. Try a different video or paste its recipe text.',
+          videoTitle
+            ? `Couldn’t extract a recipe from${videoLabel}.`
+            : 'Couldn’t extract a recipe from this video.',
         ),
         { status: 422, code: 'VIDEO_RECIPE_EXTRACTION_INCOMPLETE' },
       );
