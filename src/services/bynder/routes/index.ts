@@ -17,6 +17,7 @@ import debtsRouter from './debts.js';
 import mealPlanRouter from './mealPlan.js';
 import userRouter from './user.js';
 import aiRouter from './ai.js';
+import searchRouter from './search.js';
 import { getDashboard } from '../services/appServices.js';
 import { ensureAuth } from '../middleware/auth.js';
 
@@ -44,6 +45,7 @@ router.use('/debts', ensureAuth, debtsRouter);
 router.use('/meal-plan', ensureAuth, mealPlanRouter);
 router.use('/user', ensureAuth, userRouter);
 router.use('/ai', ensureAuth, aiRouter);
+router.use('/search', ensureAuth, searchRouter);
 
 
 export default router;

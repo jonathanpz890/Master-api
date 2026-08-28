@@ -11,6 +11,7 @@ import { logger } from './logger.js';
 import User from './db/models/User.model.js';
 import routes from './routes/index.js';
 import { restoreApiTokenUser } from './middleware/auth.js';
+import { initializeBynderGeminiModels } from './utils/geminiClient.js';
 
 let initialization: Promise<void> | undefined;
 
@@ -25,6 +26,7 @@ export const initializeBynder = (): Promise<void> => {
     const mongoUri = required('BYNDER_MONGO_URI');
     required('BYNDER_SESSION_SECRET');
     await mongoose.connect(mongoUri);
+    void initializeBynderGeminiModels();
 
     passport.use(
       new GoogleStrategy(

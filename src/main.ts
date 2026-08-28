@@ -3,6 +3,7 @@ import { startHeartbeat } from 'mnemonix';
 
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { aiService } from './lib/ai-service.js';
 import { logger } from './lib/logger.js';
 import { getReadiness, initializeRequiredServices, type Readiness } from './lib/service-readiness.js';
 
@@ -29,6 +30,7 @@ const logServiceSummary = (readiness: Readiness): void => {
 };
 
 startHeartbeat();
+aiService.start();
 const app = createApp({ isReady: () => !shuttingDown, getReadiness });
 const server = app.listen(env.PORT, env.HOST, () => {
   logger.info(`API listening on ${env.HOST}:${env.PORT}`);
@@ -58,6 +60,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
 
   const forceExitTimer = setTimeout(() => {
     logger.error('Graceful shutdown timed out');
+    aiService.stop();
     process.exit(1);
   }, 10_000);
   forceExitTimer.unref();
@@ -66,11 +69,13 @@ const shutdown = (signal: NodeJS.Signals): void => {
     .then(() => {
       clearTimeout(forceExitTimer);
       logger.info('HTTP server closed');
+      aiService.stop();
       process.exit(0);
     })
     .catch((error: unknown) => {
       clearTimeout(forceExitTimer);
       logger.error('Graceful shutdown failed', error);
+      aiService.stop();
       process.exit(1);
     });
 };
