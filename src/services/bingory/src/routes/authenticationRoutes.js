@@ -31,6 +31,7 @@ router.get('/google', (req, res, next) => {
   return passport.authenticate('bingory-google', {
     scope: ['profile', 'email'],
     state: true,
+    prompt: 'select_account',
   })(req, res, next);
 });
 router.get(
