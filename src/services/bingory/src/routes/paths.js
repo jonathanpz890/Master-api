@@ -11,15 +11,21 @@ const paths = Object.freeze({
     base: '/auth',
     register: '/register',
     login: '/login',
+    google: '/google',
+    googleCallback: '/google/callback',
     session: '/session',
     logout: '/logout',
   }),
   games: Object.freeze({
     base: '/games',
+    mine: '/mine',
+    explore: '/explore',
+    comments: '/comments',
     join: '/join',
   }),
   users: Object.freeze({
     base: '/users',
+    profile: '/profile',
   }),
 });
 

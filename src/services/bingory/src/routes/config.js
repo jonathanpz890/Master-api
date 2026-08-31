@@ -10,12 +10,17 @@ router.get(paths.root, (_req, res) => {
     routes: {
       register: `POST ${paths.auth.base}${paths.auth.register}`,
       login: `POST ${paths.auth.base}${paths.auth.login}`,
+      google: `GET ${paths.auth.base}${paths.auth.google}`,
       session: `GET ${paths.auth.base}${paths.auth.session}`,
       logout: `POST ${paths.auth.base}${paths.auth.logout}`,
       createGame: `POST ${paths.games.base}`,
+      myGames: `GET ${paths.games.base}${paths.games.mine}`,
+      exploreGames: `GET ${paths.games.base}${paths.games.explore}`,
       getGame: `GET ${paths.games.base}/:gameId`,
+      comment: `POST ${paths.games.base}/:gameId${paths.games.comments}`,
       joinGame: `POST ${paths.games.base}${paths.games.join}`,
       users: `GET|PATCH ${paths.users.base}`,
+      profile: `PATCH ${paths.users.base}${paths.users.profile}`,
     },
   });
 });

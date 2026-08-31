@@ -2,6 +2,20 @@ const User = require('../entities/models/user');
 const { logger } = require('../logger');
 
 module.exports = {
+  updateProfile: async (req, res) => {
+    try {
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: { name: req.body.name.trim() } },
+        { new: true, runValidators: true },
+      ).select('-password');
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      return res.status(200).json({ success: true, data: { user } });
+    } catch (error) {
+      logger.error('Updating Bingory profile failed', error);
+      return res.status(400).json({ error: 'Unable to update profile' });
+    }
+  },
   getAllUsers: async (req, res) => {
     try {
       const users = await User.find().select('-password');

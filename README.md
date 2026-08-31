@@ -63,6 +63,7 @@ Every Bingory URL is below `/api/v1/bingory` and uses explicit resource names.
 | --- | --- | --- |
 | `POST` | `/auth/register` | Create an account |
 | `POST` | `/auth/login` | Start a session |
+| `GET` | `/auth/google` | Start Google sign-in |
 | `GET` | `/auth/session` | Get the signed-in user |
 | `POST` | `/auth/logout` | End the current session |
 | `POST` | `/games` | Create a game |
@@ -76,6 +77,11 @@ Bingory React app runs on `http://localhost:3001`. The client calls the API at
 `http://localhost:3000/api/v1/bingory`.
 For a deployed Bingory client, add its exact HTTPS origin to `CORS_ORIGINS` in
 the Microserver API environment.
+
+Google sign-in additionally requires `BINGORY_GOOGLE_CLIENT_ID`,
+`BINGORY_GOOGLE_CLIENT_SECRET`, `BINGORY_SERVER_URL`, and
+`BINGORY_CLIENT_ORIGIN`. The callback registered with Google must be
+`<BINGORY_SERVER_URL>/api/v1/bingory/auth/google/callback`.
 
 On startup, Print3D Hub and Bynder connect in the background. Bingory connects
 only when its namespace receives its first request, so a Bingory database issue

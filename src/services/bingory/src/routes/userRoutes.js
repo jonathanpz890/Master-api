@@ -6,6 +6,7 @@ const middleware = require('../middleware/middleware');
 router.use(middleware.requireAuthentication);
 
 router.get('/', Service.getAllUsers);
+router.patch('/profile', Validator.updateProfile, middleware.validateRequestSchema, Service.updateProfile);
 router.patch('/', Validator.updateUser, middleware.validateRequestSchema, Service.updateUser);
 
 module.exports = router;

@@ -15,5 +15,8 @@ module.exports = {
         body('gameId').isMongoId(),
         body('propertyId').isMongoId(),
         body('marked').isBoolean()
-    ]
+    ],
+    updateProfile: [
+        body('name').isString().trim().isLength({ min: 2, max: 80 }).withMessage('יש להזין שם באורך של 2–80 תווים'),
+    ],
 }

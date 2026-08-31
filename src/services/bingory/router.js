@@ -4,6 +4,7 @@ const mongooseBynder = require('mongoose-bynder');
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const MongoStore = require('connect-mongo');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
@@ -38,6 +39,50 @@ const initializeBingory = () => {
         });
       }),
     );
+    const googleClientId = process.env.BINGORY_GOOGLE_CLIENT_ID;
+    const googleClientSecret = process.env.BINGORY_GOOGLE_CLIENT_SECRET;
+    const serverUrl = process.env.BINGORY_SERVER_URL?.replace(/\/$/, '');
+
+    // Google is optional until credentials are configured, so email/password
+    // authentication keeps the service available during setup.
+    if (googleClientId && googleClientSecret && serverUrl) {
+      passport.use(
+        'bingory-google',
+        new GoogleStrategy(
+          {
+            clientID: googleClientId,
+            clientSecret: googleClientSecret,
+            callbackURL: `${serverUrl}/api/v1/bingory/auth/google/callback`,
+          },
+          async (_accessToken, _refreshToken, profile, done) => {
+            try {
+              const email = profile.emails?.[0]?.value?.trim().toLowerCase();
+              if (!email) return done(null, false, { message: 'לא נמצאה כתובת אימייל בחשבון Google' });
+
+              let user = await User.findOne({
+                $or: [{ googleSubject: profile.id }, { email }],
+              });
+              if (user) {
+                if (!user.googleSubject) {
+                  user.googleSubject = profile.id;
+                  await user.save();
+                }
+                return done(null, user);
+              }
+
+              user = await new User({
+                name: profile.displayName?.trim() || email.split('@')[0],
+                email,
+                googleSubject: profile.id,
+              }).save();
+              return done(null, user);
+            } catch (error) {
+              return done(error);
+            }
+          },
+        ),
+      );
+    }
     passport.serializeUser((user, done) =>
       done(null, {
         id: user.id,

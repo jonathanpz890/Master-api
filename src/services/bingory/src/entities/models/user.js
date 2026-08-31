@@ -12,6 +12,7 @@ const UserGameSchema = new mongoose.Schema(
   {
     _id: { type: mongoose.Schema.Types.ObjectId, ref: 'BingoSession', required: true },
     properties: { type: [AssignedPropertySchema], required: true },
+    playerColor: { type: String, trim: true },
   },
   { _id: false },
 );
@@ -32,7 +33,14 @@ const UserSchema = new mongoose.Schema(
         },
         password: {
             type: String, 
-            required: true
+            required: function() {
+                return !this.googleSubject;
+            }
+        },
+        googleSubject: {
+            type: String,
+            unique: true,
+            sparse: true,
         },
         games: { type: [UserGameSchema], default: [] },
     }

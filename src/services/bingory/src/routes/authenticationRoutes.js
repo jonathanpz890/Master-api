@@ -5,6 +5,13 @@ const Middleware = require('../middleware/middleware');
 const passport = require('passport');
 const { logger } = require('../logger');
 
+const googleIsConfigured = () => Boolean(
+  process.env.BINGORY_GOOGLE_CLIENT_ID
+  && process.env.BINGORY_GOOGLE_CLIENT_SECRET
+  && process.env.BINGORY_SERVER_URL,
+);
+const clientOrigin = () => (process.env.BINGORY_CLIENT_ORIGIN || 'http://localhost:3001').replace(/\/$/, '');
+
 router.post(
   '/register',
   Validator.createUser,
@@ -17,6 +24,25 @@ router.post('/login', Validator.login, Middleware.validateRequestSchema, passpor
     session: req.session.id,
   });
 });
+router.get('/google', (req, res, next) => {
+  if (!googleIsConfigured()) {
+    return res.status(503).json({ message: 'Google authentication is not configured yet' });
+  }
+  return passport.authenticate('bingory-google', {
+    scope: ['profile', 'email'],
+    state: true,
+  })(req, res, next);
+});
+router.get(
+  '/google/callback',
+  (req, res, next) => {
+    if (!googleIsConfigured()) return res.redirect(`${clientOrigin()}/login?auth=google-unavailable`);
+    return passport.authenticate('bingory-google', {
+      failureRedirect: `${clientOrigin()}/login?auth=google-failed`,
+    })(req, res, next);
+  },
+  (_req, res) => res.redirect(clientOrigin()),
+);
 router.get('/session', (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'נדרשת התחברות לחשבון' });
   return res.status(200).json({ user: req.user });
